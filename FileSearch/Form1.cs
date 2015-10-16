@@ -74,10 +74,10 @@ namespace FileSearch
             {
                 MessageBox.Show(oce.Message);
             }
-            catch (Exception ex)
+            /*catch (Exception ex)
             {
                 MessageBox.Show("Exception: " + ex.Message);
-            }
+            }*/
             finally
             {
                 cts.Dispose();
@@ -85,43 +85,56 @@ namespace FileSearch
             timer1.Stop();
             buttonSearch.Enabled = true;
             buttonStop.Enabled = false;
-            //MessageBox.Show("found " + foundFiles.Count + " files");
         }
 
         private async Task SearchInFolder(string folderPath, CancellationToken ct)
         {
             foreach (string dir in Directory.GetDirectories(folderPath))
-                await SearchInFolder(dir, ct);
+                try
+                {
+                    await SearchInFolder(dir, ct);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Exception: " + ex.Message);
+                }
             bool first = true;
             TreeNode folderNode = null;
             List<string> suitableFiles = Directory.GetFiles(folderPath, textBoxFilenameTemplate.Text).ToList();
             foreach (string filename in Directory.GetFiles(folderPath))
             {
-                labelProcessing.Text = filename;
-                if (ct.IsCancellationRequested)
+                try
                 {
-                    ct.ThrowIfCancellationRequested();
-                }
-                if (suitableFiles.Contains(filename))
-                {
-                    using (StreamReader reader = new StreamReader(filename))
+                    labelProcessing.Text = filename;
+                    if (ct.IsCancellationRequested)
                     {
-                        string s = await reader.ReadToEndAsync();
-                        if (s.IndexOf(textBoxText.Text) > -1)
+                        ct.ThrowIfCancellationRequested();
+                    }
+                    if (suitableFiles.Contains(filename))
+                    {
+                        using (StreamReader reader = new StreamReader(filename))
                         {
-                            if (first)
+                            string s = await reader.ReadToEndAsync();
+                            if (s.IndexOf(textBoxText.Text) > -1)
                             {
-                                string[] temp = folderPath.Split('\\');                                
-                                List<string> folderNodesList = new List<string>(temp);
-                                for (int i = 0; i < commonNodeNames.Count; i++)
-                                    folderNodesList.RemoveAt(0);
-                                CreateNode(folderNodesList, ref ancestorNode, ref folderNode);
-                                first = false;
+                                if (first)
+                                {
+                                    string[] temp = folderPath.Split('\\');
+                                    List<string> folderNodesList = new List<string>(temp);
+                                    for (int i = 0; i < commonNodeNames.Count; i++)
+                                        folderNodesList.RemoveAt(0);
+                                    CreateNode(folderNodesList, ref ancestorNode, ref folderNode);
+                                    first = false;
+                                }
+                                foundFiles.Add(filename);
+                                folderNode.Nodes.Add(filename.Substring(filename.LastIndexOf('\\') + 1));
                             }
-                            foundFiles.Add(filename);
-                            folderNode.Nodes.Add(filename.Substring(filename.LastIndexOf('\\') + 1));
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Exception: " + ex.Message);
                 }
                 filesProcessed++;
                 labelProcessed.Text = filesProcessed.ToString();
@@ -139,7 +152,11 @@ namespace FileSearch
 
         private void CreateNode(List<string> nodeNames, ref TreeNode parent, ref TreeNode lastNode)
         {
-            TreeNode newNode = parent.Nodes.Add(nodeNames[0]);
+            TreeNode newNode;
+            if (nodeNames.Count > 0)
+                newNode = parent.Nodes.Add(nodeNames[0]);
+            else
+                newNode = parent;
             if (nodeNames.Count > 1)
             {
                 nodeNames.RemoveAt(0);
