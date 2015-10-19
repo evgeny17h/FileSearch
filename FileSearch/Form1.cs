@@ -74,10 +74,6 @@ namespace FileSearch
             {
                 MessageBox.Show(oce.Message);
             }
-            /*catch (Exception ex)
-            {
-                MessageBox.Show("Exception: " + ex.Message);
-            }*/
             finally
             {
                 cts.Dispose();
@@ -92,11 +88,12 @@ namespace FileSearch
             foreach (string dir in Directory.GetDirectories(folderPath))
                 try
                 {
+                    if (ct.IsCancellationRequested)
+                        break;
                     await SearchInFolder(dir, ct);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Exception: " + ex.Message);
                 }
             bool first = true;
             TreeNode folderNode = null;
@@ -104,12 +101,12 @@ namespace FileSearch
             foreach (string filename in Directory.GetFiles(folderPath))
             {
                 try
-                {
-                    labelProcessing.Text = filename;
+                {                    
                     if (ct.IsCancellationRequested)
                     {
                         ct.ThrowIfCancellationRequested();
                     }
+                    labelProcessing.Text = filename;
                     if (suitableFiles.Contains(filename))
                     {
                         using (StreamReader reader = new StreamReader(filename))
@@ -134,7 +131,8 @@ namespace FileSearch
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("Exception: " + ex.Message);
+                    if (ex is OperationCanceledException)
+                        break;
                 }
                 filesProcessed++;
                 labelProcessed.Text = filesProcessed.ToString();
